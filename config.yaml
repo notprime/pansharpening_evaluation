@@ -1,0 +1,8 @@
+# Example configuration for pansharpening metrics
+# Usage: python main.py sharp.tif pan.tif hs.tif --config config.yaml
+
+q_block_size: 32
+q_shift: 32
+dask_chunk_size: [64, 64]
+n_workers: 0.9
+exponent: 1
