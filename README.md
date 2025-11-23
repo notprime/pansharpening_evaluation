@@ -1,4 +1,4 @@
-Pansharpening Quality Metrics
+#Pansharpening Quality Metrics
 
 Efficient quality assessment metrics for hyperspectral pansharpening evaluation, optimized for large images using Dask.
 Overview
