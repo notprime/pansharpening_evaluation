@@ -14,7 +14,7 @@ This package implements reference-free quality metrics for evaluating pansharpen
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/pansharpening-metrics.git
+git clone https://github.com/notprime/pansharpening_evaluation.git
 cd pansharpening-metrics
 
 # Install dependencies
@@ -369,7 +369,7 @@ If you use this library in your research, please cite:
   author = {Riccardo Musto},
   title = {Pansharpening Quality Metrics for Hyperspectral Images},
   year = {2025},
-  url = {https://github.com/yourusername/pansharpening-metrics},
+  url = {https://github.com/notprime/pansharpening_evaluation},
   version = {1.0.0}
 }
 ```
