@@ -10,7 +10,7 @@ setup(
     description="Quality metrics for hyperspectral pansharpening evaluation",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/pansharpening-metrics", # <--- DA CAMBIARE
+    url="https://github.com/notprime/pansharpening_evaluation",
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

@@ -136,6 +136,7 @@ Examples:
     # Load data
     print("\nLoading data...")
     try:
+        # Channels will be on last dimension (H x W x C format)
         sharp = load_data(args.sharp) 
         pan = load_data(args.pan) 
         hs = load_data(args.hs) 
