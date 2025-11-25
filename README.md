@@ -343,7 +343,7 @@ MIT License - see LICENSE file for details.
 
 ## Contributing
 
-Contributions are welcome! Please submit issues and pull requests on GitHub. I used to work on the origina code a while ago (and never actually thoroughly tested it), so if you notice anything wrong, let me know asap :D
+Contributions are welcome! Please submit issues and pull requests on GitHub. **I used to work on the origina code a while ago (and never actually thoroughly tested it), so if you notice anything wrong, let me know asap :D**
 
 ## Author
 
