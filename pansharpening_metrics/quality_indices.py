@@ -2,9 +2,7 @@ import numpy as np
 import scipy.ndimage as ft
 from math import ceil, floor
 
-from .utils import (pad_for_sliding_window,
-                    pad_to_power_of_2_channels,
-                    normalize_block,
+from .utils import (normalize_block,
                     cayley_dickson_property_1d,
                     cayley_dickson_property_2d)
 
@@ -13,7 +11,7 @@ def Q(outputs, labels, block_size = 32):
     """
     Universal Image Quality Index (UIQI).
     Measures the similarity between two images using correlation, luminance,
-    and contrast comparison within sliding windows. ---> TO CHECK
+    and contrast comparison within sliding windows.
 
     Parameters:
         outputs (np.ndarray): First image. Shape: (H, W, C)
@@ -72,16 +70,16 @@ def Q(outputs, labels, block_size = 32):
 
 def q_index_metric(im1, im2, size):
     """
-        Q2n calculation on a window of dimension (size, size).
-        Auxiliary function for Q2n calculation.
+    Q2n calculation on a window of dimension (size, size).
+    Auxiliary function for Q2n calculation.
 
-        Parameters:
-            im1 (np.ndarray): First image patch. Shape: (size, size, C)
-            im2 (np.ndarray): Second image patch. Shape: (size, size, C)
-            size (int): Window size
+    Parameters:
+        im1 (np.ndarray): First image patch. Shape: (size, size, C)
+        im2 (np.ndarray): Second image patch. Shape: (size, size, C)
+        size (int): Window size
 
-        Returns:
-            q (np.ndarray): Q2n value for this window
+    Returns:
+        q (np.ndarray): Q2n value for this window
     """
 
     im1 = im1.astype(np.double)
@@ -139,16 +137,16 @@ def q_index_metric(im1, im2, size):
 
 def Q2n_map(outputs, labels, q_block_size = 32, q_shift = 32):
     """
-        Compute Q2n map using sliding windows.
+    Compute Q2n map using sliding windows.
 
-        Parameters:
-            outputs (np.ndarray): First image. Shape: (H, W, C)
-            labels (np.ndarray): Second image. Shape: (H, W, C)
-            q_block_size (int): Window size. Default: 32
-            q_shift (int): Stride. Default: 32
+    Parameters:
+        outputs (np.ndarray): First image. Shape: (H, W, C)
+        labels (np.ndarray): Second image. Shape: (H, W, C)
+        q_block_size (int): Window size. Default: 32
+        q_shift (int): Stride. Default: 32
 
-        Returns:
-            q2n_index_map (np.ndarray): Q2n map. Shape: (n_windows_h, n_windows_w)
+    Returns:
+        q2n_index_map (np.ndarray): Q2n map. Shape: (n_windows_h, n_windows_w)
     """
 
     height, width, depth = labels.shape

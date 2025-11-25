@@ -1,26 +1,21 @@
 # Pansharpening Quality Metrics
 
-Efficient quality assessment metrics for hyperspectral pansharpening evaluation, optimized for large images using Dask.
+Efficient reference-free quality assessment for hyperspectral pansharpening, optimized for large images using Dask.
 
 ## Overview
 
-This package implements reference-free quality metrics for evaluating pansharpening results:
+This package implements three standard quality metrics for evaluating pansharpening results without requiring reference images:
 
-- **D_λ (D_lambda)**: Spectral distortion index
-- **D_s**: Spatial distortion index  
-- **HQNR**: Hybrid Quality with No Reference = (1 - D_λ) × (1 - D_s)
+- **D_λ (D_lambda)**: Spectral distortion index (lower is better)
+- **D_s**: Spatial distortion index (lower is better)
+- **HQNR**: Hybrid Quality with No Reference = (1 - D_λ) × (1 - D_s) (higher is better)
 
 ## Installation
 
 ```bash
-# Clone repository
 git clone https://github.com/notprime/pansharpening_evaluation.git
-cd pansharpening-metrics
-
-# Install dependencies
+cd pansharpening_evaluation
 pip install -r requirements.txt
-
-# Install package
 pip install -e .
 ```
 
@@ -32,46 +27,56 @@ pip install -e .
 # Basic usage
 python main.py sharp.tif pan.tif hs.tif
 
-# With configuration
-python main.py sharp.tif pan.tif hs.tif --config config.yaml
+# With custom parameters
+python main.py sharp.tif pan.tif hs.tif --ratio 6 --sensor PRISMA
 
-# Save results
+# Save results to JSON
 python main.py sharp.tif pan.tif hs.tif --output results.json
 ```
 
-### Python API (Recommended for Scripts)
-First load the data, then preprocess the cubes, and finally compute the metrics. Change the `ratio` value to your needs.
+### Python API (Recommended)
 
 ```python
-from pansharpening_metrics import compute_metrics, MetricsConfig
+from pansharpening_metrics import compute_metrics, preprocess_for_metrics, MetricsConfig
 import rasterio
 
-# Load images (H x W x C format)
+# Load images (converts to H × W × C format automatically)
 sharp = rasterio.open('sharp.tif').read().transpose(1, 2, 0)
 pan = rasterio.open('pan.tif').read().transpose(1, 2, 0)
 hs = rasterio.open('hs.tif').read().transpose(1, 2, 0)
+
+# Preprocess (adjust ratio to match your data)
 sharp, pan, hs = preprocess_for_metrics(sharp, pan, hs, ratio=6)
 
-# Configure (optional)
-config = MetricsConfig(q_block_size=32, n_workers=0.9)
-
 # Compute metrics
-metrics = compute_metrics(sharp, pan, hs, ratio=6, config=config)
+metrics = compute_metrics(sharp, pan, hs, ratio=6)
 
-# Results
+# Display results
 print(f"D_lambda: {metrics['D_lambda']:.4f}")
 print(f"D_s:      {metrics['D_s']:.4f}")
 print(f"HQNR:     {metrics['HQNR']:.4f}")
 ```
 
+## Image Format Requirements
+
+All images must be in **H × W × C** format (Height × Width × Channels):
+
+- **Hyperspectral (HS)**: `(H, W, C)` at low resolution (e.g., 30m for PRISMA)
+- **Panchromatic (PAN)**: `(H×ratio, W×ratio, 1)` at high resolution (e.g., 5m)
+- **Sharpened**: `(H×ratio, W×ratio, C)` at high resolution
+
+**Example for PRISMA (30m → 5m, ratio=6):**
+```python
+hs.shape    # (512, 512, 180)    - 30m resolution
+pan.shape   # (3072, 3072, 1)    - 5m resolution (512×6=3072)
+sharp.shape # (3072, 3072, 180)  - 5m resolution, 180 bands
+```
+
+**Note:** The `load_data` function in `main.py` handles transpose operations automatically when loading from GeoTIFF files, as I expect `rasterio` to load the channels in the first dimension.
+
 ## Usage
 
 ### Command Line Interface
-
-**Basic usage:**
-```bash
-python main.py <sharp.tif> <pan.tif> <hs.tif>
-```
 
 **All options:**
 ```bash
@@ -81,86 +86,79 @@ python main.py sharp.tif pan.tif hs.tif \
     --config config.yaml \
     --output results.json \
     --q_block_size 32 \
-    --n_workers 0.9 \
-    --dask_chunk_size 128 128
+    --n_workers 0.9
 ```
 
 **Arguments:**
-- `sharp.tif`: Sharpened hyperspectral image path (required)
-- `pan.tif`: Panchromatic image path (required)
-- `hs.tif`: Low-resolution hyperspectral image path (required)
-- `--ratio`: Resolution ratio (default: 6)
-- `--sensor`: Sensor name (default: PRISMA)
-- `--config`: YAML configuration file
-- `--output, -o`: Save results to JSON
-- `--q_block_size`: Override Q window size
-- `--n_workers`: Override worker fraction (0-1)
-- `--dask_chunk_size`: Override chunk size (H W)
+- `sharp.tif`: Path to sharpened hyperspectral image (required)
+- `pan.tif`: Path to panchromatic image (required)
+- `hs.tif`: Path to low-resolution hyperspectral image (required)
+- `--ratio`: Resolution ratio between PAN and HS (default: 6)
+- `--sensor`: Sensor name for MTF filters (default: PRISMA)
+- `--config`: Path to YAML configuration file
+- `--output, -o`: Save results to JSON file
+- `--q_block_size`: Q window size for quality indices
+- `--n_workers`: Fraction of CPU cores to use (0-1, default: 0.9)
+- `--dask_chunk_size`: Chunk size for parallelization (H W)
 
-At the moment, this are the current supported sensors:
-- QuickBird;
-- Ikonos;
-- GeoEye1;
-- WorldView-2;
-- WorldView-3;
-- PRISMA.
+**Supported sensors:**
+- PRISMA
+- QuickBird
+- Ikonos
+- GeoEye1
+- WorldView-2
+- WorldView-3
 
-If you want to add your own sensor, you have to add it to the `resize_hs` and `resize_pan` functions in `downsampling.py`, by providing the Modulation Transfer Frequencies for the low-pass filtering. 
+To add a custom sensor, modify the `resize_hs` and `resize_pan` functions in `pansharpening_metrics/downsampling.py` with appropriate Modulation Transfer Function (MTF) parameters, and add your custom sensor in the `pansharpening_metrics/sensors.py` file.
 
 ### Python API
 
-**Import:**
-```python
-from pansharpening_metrics import (
-    compute_metrics,      # Main function
-    MetricsConfig,        # Configuration
-    D_lambda_khan,        # Individual metrics
-    D_s,
-    normalize_inputs,     # Utilities
-    preprocess_for_metrics
-)
-```
-
 **Basic usage:**
 ```python
+from pansharpening_metrics import compute_metrics
+
 # With default configuration
 metrics = compute_metrics(sharp, pan, hs, ratio=6)
 ```
 
-**With custom configuration:**
+**Custom configuration:**
 ```python
+from pansharpening_metrics import compute_metrics, MetricsConfig
+
 config = MetricsConfig(
-    q_block_size=32,
-    q_shift=32,
-    dask_chunk_size=(128, 128),
-    n_workers=0.9,
-    exponent=1
+    q_block_size=32,        # Window size for Q/Q2n indices
+    q_shift=32,             # Stride for sliding windows
+    dask_chunk_size=(128, 128),  # Chunk size for parallelization
+    n_workers=0.9,          # Fraction of CPU cores
+    exponent=1              # Lp norm exponent for distortion
 )
 metrics = compute_metrics(sharp, pan, hs, ratio=6, config=config)
 ```
 
 **Using presets:**
 ```python
-config = MetricsConfig.balanced()      # Recommended
-# config = MetricsConfig.conservative() # Low memory
-# config = MetricsConfig.aggressive()   # High performance
+# Conservative: low memory usage
+config = MetricsConfig.conservative()
 
-metrics = compute_metrics(sharp, pan, hs, config=config)
+# Balanced: recommended for most cases (default)
+config = MetricsConfig.balanced()
+
+# Aggressive: maximum performance
+config = MetricsConfig.aggressive()
+
+metrics = compute_metrics(sharp, pan, hs, ratio=6, config=config)
 ```
-
-
-## Configuration
 
 ### Configuration File (YAML)
 
 Create a `config.yaml`:
 
 ```yaml
-q_block_size: 32          # Window size for Q/Q2n
-q_shift: 32               # Stride for sliding windows
-dask_chunk_size: [128, 128]  # Chunk size for parallelization
-n_workers: 0.9            # Fraction of CPU cores to use
-exponent: 1               # Exponent for distortion metrics
+q_block_size: 32              # Window size for quality indices
+q_shift: 32                   # Stride for sliding windows
+dask_chunk_size: [128, 128]   # Chunk size for parallelization
+n_workers: 0.9                # Fraction of CPU cores (0-1)
+exponent: 1                   # Exponent for distortion metrics
 ```
 
 Use it:
@@ -172,70 +170,54 @@ python main.py sharp.tif pan.tif hs.tif --config config.yaml
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `q_block_size` | 32 | Window size for quality indices |
-| `q_shift` | 32 | Stride for sliding windows |
-| `dask_chunk_size` | (64, 64) | Chunk size for Dask parallelization |
+| `q_block_size` | 32 | Window size for Q and Q2n quality indices |
+| `q_shift` | 32 | Stride for sliding windows (32 = non-overlapping) |
+| `dask_chunk_size` | (64, 64) | Spatial chunk size for parallel processing |
 | `n_workers` | 0.9 | Fraction of CPU cores to use (0-1) |
-| `exponent` | 1 | Exponent for distortion metrics (Lp norm) |
+| `exponent` | 1 | Exponent for Lp norm in distortion metrics |
 
-### Presets
+## Understanding the Metrics
 
-```python
-# Conservative: low memory usage
-config = MetricsConfig.conservative()
-# q_block_size=32, chunk_size=(64,64), n_workers=0.5
+### D_lambda (Spectral Distortion)
 
-# Balanced: recommended for most cases
-config = MetricsConfig.balanced()
-# q_block_size=32, chunk_size=(128,128), n_workers=0.9
+Measures preservation of spectral relationships between bands.
 
-# Aggressive: maximum performance
-config = MetricsConfig.aggressive()
-# q_block_size=32, chunk_size=(256,256), n_workers=0.95, overlapping windows
-```
+- **Range**: [0, 1]
+- **Interpretation**: 0 = perfect spectral preservation, higher = more distortion
+- **Method**: Compares Q2n index between band pairs at low resolution
 
-## Image Format Requirements
+### D_s (Spatial Distortion)
 
-All images should be in **H × W × C** format (Height × Width × Channels). This is handled by the `load_data` function in the `main.py` file, so that:
+Measures preservation of spatial details.
 
-- **Hyperspectral (HS)**: (H, W, C) at low resolution (e.g., 30m)
-- **Panchromatic (PAN)**: (H×ratio, W×ratio, 1) at high resolution (e.g., 5m)
-- **Sharpened**: (H×ratio, W×ratio, C) at high resolution
+- **Range**: [0, 1]  
+- **Interpretation**: 0 = perfect spatial preservation, higher = more distortion
+- **Method**: Compares Q index at high and low resolutions for each band
 
-### Example for PRISMA (30m → 5m, ratio=6)
+### HQNR (Hybrid Quality with No Reference)
 
-```python
-hs.shape    # (512, 512, 180)    - 30m resolution
-pan.shape   # (3072, 3072, 1)    - 5m resolution (512×6=3072)
-sharp.shape # (3072, 3072, 180)  - 5m resolution
-```
+Overall quality combining spectral and spatial preservation.
+
+- **Formula**: HQNR = (1 - D_λ) × (1 - D_s)
+- **Range**: [0, 1]
+- **Interpretation**: 1 = perfect quality, 0 = complete failure
+- **Balance**: Captures trade-off between spectral and spatial fidelity
 
 ## Examples
 
-### Example 1: Basic Usage
+### Example 1: Command Line
 
 ```bash
-python main.py data/sharp.tif data/pan.tif data/hs.tif
+python main.py data/sharp.tif data/pan.tif data/hs.tif --sensor PRISMA
 ```
 
-Output:
+**Output:**
 ```
 ======================================================================
 PANSHARPENING QUALITY METRICS
 ======================================================================
 
 Loading images...
-  Loading sharp.tif...
-  Loading pan.tif...
-  Loading hs.tif...
-
-Image shapes:
-  Sharp: (3072, 3072, 180)
-  PAN:   (3072, 3072, 1)
-  HS:    (512, 512, 180)
-
-Preprocessing...
-After preprocessing:
   Sharp: (3072, 3072, 180)
   PAN:   (3072, 3072, 1)
   HS:    (512, 512, 180)
@@ -246,18 +228,16 @@ Configuration: q_block_size=32, chunk_size=(64, 64), n_workers=0.9
 ======================================================================
 RESULTS
 ======================================================================
-D_lambda (spectral): 0.123456
-D_s (spatial):       0.234567
-HQNR (overall):      0.678901
+D_lambda (spectral): 0.1235
+D_s (spatial):       0.2346
+HQNR (overall):      0.6789
 ======================================================================
-
-Done!
 ```
 
-### Example 2: Python Script
+### Example 2: Python Script with JSON Export
 
 ```python
-from pansharpening_metrics import compute_metrics, MetricsConfig
+from pansharpening_metrics import compute_metrics, preprocess_for_metrics, MetricsConfig
 import rasterio
 import json
 
@@ -266,103 +246,85 @@ sharp = rasterio.open('sharp.tif').read().transpose(1, 2, 0)
 pan = rasterio.open('pan.tif').read().transpose(1, 2, 0)
 hs = rasterio.open('hs.tif').read().transpose(1, 2, 0)
 
-# Configure
+# Preprocess and compute
+sharp, pan, hs = preprocess_for_metrics(sharp, pan, hs, ratio=6)
 config = MetricsConfig.balanced()
-
-# Compute
 metrics = compute_metrics(sharp, pan, hs, ratio=6, config=config)
 
-# Save
+# Save results
 with open('results.json', 'w') as f:
     json.dump(metrics, f, indent=2)
 
 print(f"HQNR: {metrics['HQNR']:.4f}")
 ```
 
-## Understanding the Metrics
-
-### D_lambda (Spectral Distortion)
-
-Measures how well spectral relationships between bands are preserved.
-
-- **Range**: [0, 1]
-- **Interpretation**: Lower is better (0 = perfect spectral preservation)
-- **Method**: Compares Q2n index between band pairs at low resolution
-
-### D_s (Spatial Distortion)
-
-Measures how well spatial details are preserved.
-
-- **Range**: [0, 1]  
-- **Interpretation**: Lower is better (0 = perfect spatial preservation)
-- **Method**: Compares Q index at high and low resolutions for each band
-
-### HQNR (Hybrid Quality with No Reference)
-
-Overall quality combining spectral and spatial preservation.
-
-- **Formula**: HQNR = (1 - D_λ) × (1 - D_s)
-- **Range**: [0, 1]
-- **Interpretation**: Higher is better (1 = perfect quality)
-
 ## Performance Tips
 
-### Memory Management
+### For Large Images (>5000×5000 pixels)
 
-**For large images (>5000×5000):**
+Use larger chunks and more workers:
+
 ```python
 config = MetricsConfig(
-    dask_chunk_size=(256, 256),  # Larger chunks
+    dask_chunk_size=(256, 256),
     n_workers=0.9
 )
+```
+
+### Memory Issues
+
+If encountering memory errors, use the conservative preset:
+
+```python
+config = MetricsConfig.conservative()
 ```
 
 ## Project Structure
 
 ```
-pansharpening-metrics/
+pansharpening_evaluation/
 ├── pansharpening_metrics/    # Main package
-│   ├── __init__.py           # API exports
-│   ├── config.py             # MetricsConfig class
-│   ├── utils.py              # Utility functions
+│   ├── __init__.py           # Public API exports
+│   ├── config.py             # MetricsConfig class and presets
+│   ├── utils.py              # Preprocessing utilities
 │   ├── quality_indices.py    # Q and Q2n implementations
-│   ├── metrics.py            # D_lambda, D_s, compute_metrics
-│   └── downsampling.py       # Downsampling functions
-├── main.py                   # CLI entry point
+│   ├── metrics.py            # D_lambda, D_s, HQNR
+│   └── downsampling.py       # Sensor-specific MTF filtering
+├── main.py                   # Command-line interface
 ├── config.yaml               # Example configuration
-├── requirements.txt          # Dependencies
-├── setup.py                  # Package setup
-└── README.md                 # This file
+├── requirements.txt          # Python dependencies
+├── setup.py                  # Package installation
+└── README.md                 # Documentation
 ```
 
 ## Troubleshooting
 
-### Import Error
-
+**Import errors:**
 ```bash
-# Install package in development mode
-pip install -e .
+pip install -e .  # Install in development mode
+```
+
+**Memory errors on large images:**
+```python
+config = MetricsConfig.conservative()
+```
+
+**Slow computation:**
+```python
+config = MetricsConfig.aggressive()
 ```
 
 ## References
 
-
-References:
-
 1. **Musto et al. (2024)**: "Advancing Prisma Pansharpening: A Deep Learning Approach with Synthetic Data Pretraining and Transfer Learning", WHISPERS
 2. **Scarpa et al. (2021)**: "Full-resolution quality assessment for pansharpening", arXiv:2108.06144
 3. **Garzelli & Nencini (2009)**: "Hypercomplex quality assessment of multi/hyper-spectral images", IEEE GRSL
-4. **Alparone et al. (2008)**: "Multispectral and panchromatic data fusion assessment without reference"
+4. **Alparone et al. (2008)**: "Multispectral and panchromatic data fusion assessment without reference", Photogrammetric Engineering & Remote Sensing
 5. **Vivone et al. (2020)**: "A new benchmark based on recent advances in multispectral pansharpening", IEEE GRSM
-
-
-## License
-
-MIT License - see LICENSE file for details.
 
 ## Citation
 
-If you use this library in your research, please cite:
+If you use this package in your research, please cite:
 
 ```bibtex
 @software{pansharpening_metrics,
@@ -374,10 +336,15 @@ If you use this library in your research, please cite:
 }
 ```
 
-## Author
+## License
 
-Riccardo Musto
+MIT License - see LICENSE file for details.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please submit issues and pull requests on GitHub. I used to work on the origina code a while ago (and never actually thoroughly tested it), so if you notice anything wrong, let me know asap :D
+
+## Author
+
+**Riccardo Musto**  
+GitHub: [@notprime](https://github.com/notprime)

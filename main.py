@@ -29,12 +29,10 @@ References:
 Author: Riccardo Musto
 """
 
-### NEW IMPORTS
 import argparse
 import json
 import yaml
 from pathlib import Path
-import time
 
 import numpy as np
 import rasterio
@@ -44,25 +42,6 @@ from pansharpening_metrics import (
     MetricsConfig,
     preprocess_for_metrics
 )
-
-
-
-### OLD IMPORTS
-#import paths
-import numpy as np
-import rasterio
-import multiprocessing as mp
-
-
-from math import ceil, floor, log2, sqrt
-from skimage.transform.integral import integral_image as integral
-
-import torch
-from torch import nn
-
-import dask
-import dask.array as da
-from dask.distributed import LocalCluster, Client
 
 
 def load_data(path):
