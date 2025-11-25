@@ -289,6 +289,7 @@ pansharpening_evaluation/
 │   ├── utils.py              # Preprocessing utilities
 │   ├── quality_indices.py    # Q and Q2n implementations
 │   ├── metrics.py            # D_lambda, D_s, HQNR
+│   ├── sensors.py            # Sensor properties
 │   └── downsampling.py       # Sensor-specific MTF filtering
 ├── main.py                   # Command-line interface
 ├── config.yaml               # Example configuration
